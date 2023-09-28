@@ -3,8 +3,9 @@ package org.example;
 import com.microsoft.playwright.*;
 import org.junit.jupiter.api.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.nio.file.Paths;
+
+import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat;
 
 
 public class TestExample extends BaseTest{
@@ -18,35 +19,33 @@ public class TestExample extends BaseTest{
 
     @BeforeEach
     void createContextAndPage() {
-        context = browser.newContext();
+        context = browser.newContext(new Browser.NewContextOptions().setRecordVideoDir(Paths.get("videos/")));
+// Make sure to close, so that videos are saved.
+
         page = context.newPage();
+
+        context.tracing().start(new Tracing.StartOptions()
+                .setScreenshots(true)
+                .setSnapshots(true)
+                .setSources(true));
     }
 
     @AfterEach
+
     void closeContext() {
+        context.tracing().stop(new Tracing.StopOptions()
+                .setPath(Paths.get("trace.zip")));
         context.close();
     }
 
     @Test
-    void shouldClickButton() {
-        page.navigate("data:text/html,<script>var result;</script><button onclick='result=\"Clicked\"'>Go</button>");
-        page.locator("button").click();
-        assertEquals("Clicked", page.evaluate("result"));
+    void verifyLoginWithEmptyData() {
+        page.navigate("https://demo.nopcommerce.com/");
+        page.locator("a.ico-login").click();
+        page.locator("button[class$='login-button']").click();
+        assertThat(page.locator("span#Email-error")).hasText("Please enter your email");
+        page.screenshot(new Page.ScreenshotOptions().setPath(Paths.get("screenshot.png")));
     }
 
-    @Test
-    void shouldCheckTheBox() {
-        page.setContent("<input id='checkbox' type='checkbox'></input>");
-        page.locator("input").check();
-        assertTrue((Boolean) page.evaluate("() => window['checkbox'].checked"));
-    }
 
-    @Test
-    void shouldSearchWiki() {
-        page.navigate("https://www.wikipedia.org/");
-        page.locator("input[name=\"search\"]").click();
-        page.locator("input[name=\"search\"]").fill("playwright");
-        page.locator("input[name=\"search\"]").press("Enter");
-        assertEquals("https://en.wikipedia.org/wiki/Playwright", page.url());
-    }
 }
